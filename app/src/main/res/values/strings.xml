@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">ToothCheck</string>
+    <string name="image_savepoint">DCIM/Camera</string>
+</resources>

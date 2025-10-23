@@ -1,0 +1,2 @@
+ninja: Entering directory `C:\Users\User\Desktop\ToothCheck_v\opencv\.cxx\Debug\33176h3r\arm64-v8a'
+ninja: no work to do.
