@@ -23,9 +23,8 @@ class Preparer private constructor() {
             Imgproc.cvtColor(inputMat, hsvMat, Imgproc.COLOR_BGR2HSV)
 
             // 2. ОДНА УНИВЕРСАЛЬНАЯ МАСКА ДЛЯ ВСЕХ СТАДИЙ КАРИЕСА
-            val lowerCaries = Scalar(0.0, 40.0, 20.0)     // Широкий диапазон для всех стадий
-            val upperCaries = Scalar(180.0, 255.0, 120.0)
-
+            val lowerCaries = Scalar(0.0, 80.0, 30.0)    // БОЛЕЕ РАЗБОРЧИВО
+            val upperCaries = Scalar(180.0, 200.0, 80.0) // БОЛЕЕ РАЗБОРЧИВО
             // 3. Создаем единую маску кариеса
             val cariesMask = Mat()
             Core.inRange(hsvMat, lowerCaries, upperCaries, cariesMask)
@@ -37,24 +36,32 @@ class Preparer private constructor() {
             val cariesOnTeethOnly = Mat()
             Core.bitwise_and(cariesMask, teethContourMask, cariesOnTeethOnly)
 
-            // 6. Считаем ТОЛЬКО процент темных вкраплений внутри красного
-            val darkSpotsPercent = calculateDarkSpotsInRed(cariesOnTeethOnly, inputMat)
-
-// 7. Определяем уровень риска ПО ТЕМНЫМ ВКРАПЛЕНИЯМ
-            val riskLevel = when {
-                darkSpotsPercent > 5.0 -> "ВЫСОКИЙ РИСК"    // Много темных вкраплений
-                darkSpotsPercent > 2.0 -> "СРЕДНИЙ РИСК"    // Есть темные вкрапления
-                darkSpotsPercent > 0.5 -> "НИЗКИЙ РИСК"     // Минимальные темные вкрапления
-                else -> "РИСКА НЕТ"                         // Нет темных вкраплений
+            // 6. ПРОСТОЙ ПРОЦЕНТ КАРИЕСА ОТ ВСЕГО ЗУБА
+            val totalTeethPixels = Core.countNonZero(teethContourMask)
+            val cariesPixels = Core.countNonZero(cariesOnTeethOnly)
+            val darkSpotsPercent = if (totalTeethPixels > 0) {
+                (cariesPixels.toFloat() / totalTeethPixels.toFloat()) * 100f
+            } else {
+                0f
             }
 
-// 8. ПОДСВЕЧИВАЕМ РЕЗУЛЬТАТ - КАК БЫЛО
+            // ДОБАВЬ ОТЛАДКУ
+            println("🦷 ДЕБАГ: Всего зуб: $totalTeethPixels, Кариес: $cariesPixels, Процент: $darkSpotsPercent%")
+
+            // 7. Определяем уровень риска ПО ТЕМНЫМ ВКРАПЛЕНИЯМ
+            val riskLevel = when {
+                darkSpotsPercent > 1.2 -> "🦷 ОБНАРУЖЕН КАРИЕС"    // Есть кариес
+                darkSpotsPercent > 0.5 -> "🤔 ВОЗМОЖЕН КАРИЕС"     // Сомнительный случай
+                else -> "✅ КАРИЕСА НЕТ"                          // Здоровый
+            }
+
+            // 8. ПОДСВЕЧИВАЕМ РЕЗУЛЬТАТ - КАК БЫЛО
             val resultMat = inputMat.clone()
 
-// 🔴 КРАСНЫЙ - КАРИЕС (BGR: 255,0,0)
+            // 🔴 КРАСНЫЙ - КАРИЕС (BGR: 255,0,0)
             resultMat.setTo(Scalar(255.0, 0.0, 0.0), cariesOnTeethOnly)
 
-// 🟢 ЗЕЛЕНАЯ ОБВОДКА ВОКРУГ ЗУБОВ (BGR: 0,255,0)
+            // 🟢 ЗЕЛЕНАЯ ОБВОДКА ВОКРУГ ЗУБОВ (BGR: 0,255,0)
             val teethContours = ArrayList<MatOfPoint>()
             val hierarchy = Mat()
             Imgproc.findContours(teethContourMask, teethContours, hierarchy,
@@ -64,7 +71,7 @@ class Preparer private constructor() {
                 Imgproc.drawContours(resultMat, listOf(contour), -1, Scalar(0.0, 255.0, 0.0), 3)
             }
 
-// Конвертируем обратно в Bitmap
+            // Конвертируем обратно в Bitmap
             val resultBitmap = Bitmap.createBitmap(resultMat.cols(), resultMat.rows(), Bitmap.Config.ARGB_8888)
             Utils.matToBitmap(resultMat, resultBitmap)
 
@@ -77,8 +84,6 @@ class Preparer private constructor() {
         }
 
         // 🔴 МЕТОД: Подсчет процента темных вкраплений внутри красного
-        // 🔴 МЕТОД: Подсчет процента темных вкраплений внутри красного
-        // 🔴 МЕТОД: Подсчет процента темных вкраплений внутри красного
         private fun calculateDarkSpotsInRed(cariesMask: Mat, originalMat: Mat): Float {
             if (Core.countNonZero(cariesMask) == 0) return 0f
 
@@ -90,11 +95,11 @@ class Preparer private constructor() {
             val roiGray = Mat()
             Imgproc.cvtColor(roiOriginal, roiGray, Imgproc.COLOR_BGR2GRAY)
 
-            // 3. Ищем очень темные пиксели
+            // 3. 🔴 ИЩЕМ ТЕМНЫЕ ПИКСЕЛИ (кариес) - ИНВЕРТИРУЕМ ЛОГИКУ!
             val darkMask = Mat()
-            Imgproc.threshold(roiGray, darkMask, 10.0, 255.0, Imgproc.THRESH_BINARY_INV)
+            Imgproc.threshold(roiGray, darkMask, 150.0, 255.0, Imgproc.THRESH_BINARY_INV)
 
-            // 4. 🔴 ВАЖНО: Берем темные пиксели ТОЛЬКО внутри кариеса
+            // 4. Берем темные пиксели ТОЛЬКО внутри кариеса
             val darkSpotsInCaries = Mat()
             Core.bitwise_and(cariesMask, darkMask, darkSpotsInCaries)
 
@@ -102,18 +107,23 @@ class Preparer private constructor() {
             val totalCariesPixels = Core.countNonZero(cariesMask)
             val darkPixels = Core.countNonZero(darkSpotsInCaries)
 
-            // Если нет кариеса - возвращаем 0
             if (totalCariesPixels == 0) return 0f
 
             // 🔴 ДОБАВИМ ПРОВЕРКУ ДЛЯ ОТЛАДКИ
-            println("DEBUG: totalCariesPixels = $totalCariesPixels, darkPixels = $darkPixels")
+            println("🔴 ДЕБАГ: Всего кариеса: $totalCariesPixels, Темных пятен: $darkPixels")
 
             // Процент темного ОТ ПЛОЩАДИ КРАСНОГО (кариеса)
             val percent = (darkPixels.toFloat() / totalCariesPixels.toFloat()) * 100f
-            println("DEBUG: dark spots percent = $percent%")
+            println("🔴 ДЕБАГ: Процент темных пятен: $percent%")
+            println("🔴 ДЕБАГ: ====== ДЕТАЛЬНАЯ ИНФОРМАЦИЯ =====")
+            println("🔴 ДЕБАГ: Всего пикселей в маске кариеса: $totalCariesPixels")
+            println("🔴 ДЕБАГ: Темных пикселей найдено: $darkPixels")
+            println("🔴 ДЕБАГ: Процент: $percent%")
+            println("🔴 ДЕБАГ: =================================")
 
             return percent
         }
+
         // ↓↓↓ МЕТОД ДЛЯ ОБНАРУЖЕНИЯ РЕЗКИХ ИЗМЕНЕНИЙ ЦВЕТА ↓↓↓
         private fun detectColorEdges(inputMat: Mat): Mat {
             val gray = Mat()
