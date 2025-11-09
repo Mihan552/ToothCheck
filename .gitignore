@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# OpenCV
+opencv/
+opencv-sdk/
+opencv451/.idea/
+.kotlin/
