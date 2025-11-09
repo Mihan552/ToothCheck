@@ -19,3 +19,6 @@ opencv/
 opencv-sdk/
 opencv451/.idea/
 .kotlin/
+# OpenCV build files
+opencv/build/
+opencv/.cxx/

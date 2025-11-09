@@ -23,18 +23,26 @@ class Preparer private constructor() {
             Imgproc.cvtColor(inputMat, hsvMat, Imgproc.COLOR_BGR2HSV)
 
             // 2. ОДНА УНИВЕРСАЛЬНАЯ МАСКА ДЛЯ ВСЕХ СТАДИЙ КАРИЕСА
-            val lowerCaries = Scalar(0.0, 80.0, 30.0)    // БОЛЕЕ РАЗБОРЧИВО
-            val upperCaries = Scalar(180.0, 200.0, 80.0) // БОЛЕЕ РАЗБОРЧИВО
+            val lowerCaries = Scalar(0.0, 40.0, 15.0)    // БОЛЕЕ РАЗБОРЧИВО
+            val upperCaries = Scalar(180.0, 230.0, 100.0) // БОЛЕЕ РАЗБОРЧИВО
+
             // 3. Создаем единую маску кариеса
             val cariesMask = Mat()
             Core.inRange(hsvMat, lowerCaries, upperCaries, cariesMask)
 
+            // 🔴 ДОБАВЛЯЕМ АНАЛИЗ ТЕКСТУРЫ ДЛЯ ЛУЧШЕГО ОБНАРУЖЕНИЯ
+            val textureMask = detectCariesTexture(inputMat)
+            Core.bitwise_or(cariesMask, textureMask, cariesMask)
+
+            // 🔴🔴🔴 ДОБАВЛЯЕМ ФИЛЬТРАЦИЮ ШУМА 🔴🔴🔴
+            val filteredCariesMask = filterSmallNoise(cariesMask)
+
             // 4. ОБНАРУЖЕНИЕ КОНТУРОВ ЗУБОВ
             val teethContourMask = detectTeethContours(inputMat)
 
-            // 5. ПРИМЕНЯЕМ МАСКУ ЗУБОВ К МАСКЕ КАРИЕСА
+            // 5. ПРИМЕНЯЕМ МАСКУ ЗУБОВ К МАСКЕ КАРИЕСА (ТЕПЕРЬ ФИЛЬТРОВАННОЙ)
             val cariesOnTeethOnly = Mat()
-            Core.bitwise_and(cariesMask, teethContourMask, cariesOnTeethOnly)
+            Core.bitwise_and(filteredCariesMask, teethContourMask, cariesOnTeethOnly)
 
             // 6. ПРОСТОЙ ПРОЦЕНТ КАРИЕСА ОТ ВСЕГО ЗУБА
             val totalTeethPixels = Core.countNonZero(teethContourMask)
@@ -49,9 +57,10 @@ class Preparer private constructor() {
             println("🦷 ДЕБАГ: Всего зуб: $totalTeethPixels, Кариес: $cariesPixels, Процент: $darkSpotsPercent%")
 
             // 7. Определяем уровень риска ПО ТЕМНЫМ ВКРАПЛЕНИЯМ
+            // Оптимальные пороги обнаружения
             val riskLevel = when {
-                darkSpotsPercent > 1.2 -> "🦷 ОБНАРУЖЕН КАРИЕС"    // Есть кариес
-                darkSpotsPercent > 0.5 -> "🤔 ВОЗМОЖЕН КАРИЕС"     // Сомнительный случай
+                darkSpotsPercent > 0.7 -> "🦷 ОБНАРУЖЕН КАРИЕС"    // Есть кариес
+                darkSpotsPercent > 0.2 -> "🤔 ВОЗМОЖЕН КАРИЕС"     // Сомнительный случай
                 else -> "✅ КАРИЕСА НЕТ"                          // Здоровый
             }
 
@@ -75,12 +84,55 @@ class Preparer private constructor() {
             val resultBitmap = Bitmap.createBitmap(resultMat.cols(), resultMat.rows(), Bitmap.Config.ARGB_8888)
             Utils.matToBitmap(resultMat, resultBitmap)
 
+            // 🔴 ОЧИСТКА ПАМЯТИ
+            cariesMask.release()
+            filteredCariesMask.release()
+
             return Result(
                 processedBitmap = resultBitmap,
                 suspiciousAreas = Core.countNonZero(cariesOnTeethOnly), // Количество красных пикселей
                 affectedAreaPercent = darkSpotsPercent, // 🔴 ТЕПЕРЬ ЭТО ПРОЦЕНТ ТЕМНОГО ВНУТРИ КРАСНОГО
                 riskLevel = riskLevel
             )
+        }
+        // 🔴 НОВЫЙ МЕТОД: ОБНАРУЖЕНИЕ КАРИЕСА ПО ТЕКСТУРЕ
+        private fun detectCariesTexture(inputMat: Mat): Mat {
+            val gray = Mat()
+            Imgproc.cvtColor(inputMat, gray, Imgproc.COLOR_BGR2GRAY)
+
+            // Лапласиан для обнаружения резких изменений (кариесные полости)
+            val laplacian = Mat()
+            Imgproc.Laplacian(gray, laplacian, CvType.CV_32F)
+
+            val textureMask = Mat()
+            Core.convertScaleAbs(laplacian, textureMask)
+
+            // Бинаризуем чтобы получить маску
+            Imgproc.threshold(textureMask, textureMask, 20.0, 255.0, Imgproc.THRESH_BINARY)
+
+            // Убираем шум
+            val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_ELLIPSE, Size(3.0, 3.0))
+            Imgproc.morphologyEx(textureMask, textureMask, Imgproc.MORPH_OPEN, kernel)
+
+            return textureMask
+        }
+        // 🔴 НОВЫЙ МЕТОД: ФИЛЬТРАЦИЯ МЕЛКОГО ШУМА
+        private fun filterSmallNoise(inputMask: Mat): Mat {
+            val contours = ArrayList<MatOfPoint>()
+            Imgproc.findContours(inputMask, contours, Mat(),
+                Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE)
+
+            val filteredMask = Mat.zeros(inputMask.size(), inputMask.type())
+
+            for (contour in contours) {
+                val area = Imgproc.contourArea(contour)
+                // Улучшенная фильтрация шума
+                if (area > 150.0) { // сохраняем только значительные области
+                    Imgproc.drawContours(filteredMask, listOf(contour), -1, Scalar(255.0), -1)
+                }
+            }
+
+            return filteredMask
         }
 
         // 🔴 МЕТОД: Подсчет процента темных вкраплений внутри красного
