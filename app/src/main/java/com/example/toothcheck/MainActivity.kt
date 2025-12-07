@@ -189,7 +189,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         // 🔧 ИНИЦИАЛИЗАЦИЯ OPENCV
-        if (!OpenCVLoader.initLocal()) {
+        if (!OpenCVLoader.initDebug()) {
             Toast.makeText(this, "Не удалось загрузить OpenCV", Toast.LENGTH_LONG).show()
         } else {
             Toast.makeText(this, "OpenCV успешно загружен", Toast.LENGTH_SHORT).show()
