@@ -1,6 +1,8 @@
 package com.example.toothcheck.analysis
 
 import android.graphics.Bitmap
+import java.text.SimpleDateFormat
+import java.util.*
 
 /**
  * 🦷 РЕЗУЛЬТАТ АНАЛИЗА КАРИЕСА
@@ -26,3 +28,17 @@ data class Result(
                 "Уровень риска: $riskLevel"
     }
 }
+
+/**
+ * 📋 ПРОФИЛЬ ПАЦИЕНТА
+ *
+ * Содержит историю анализов и общую статистику
+ */
+data class PatientProfile(
+    val patientId: String = "patient_${System.currentTimeMillis()}",
+    val patientName: String = "Пользователь",
+    val registrationDate: String = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()).format(Date()),
+    val totalAnalyses: Int = 0,
+    val averageHealthPercent: Float = 100f,
+    val lastAnalysisDate: String = "Не проведено"
+)

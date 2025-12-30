@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.example.toothcheck.MainActivity
+import com.example.toothcheck.analysis.PatientProfile
 import com.example.toothcheck.ui.components.camera.CameraPreview
 import com.example.toothcheck.analysis.Result
 
@@ -22,6 +23,7 @@ object AppContent {
         var cameraEnabled by remember { mutableStateOf(false) }
         var showResults by remember { mutableStateOf(false) }
         var analysisResult by remember { mutableStateOf<Result?>(null) }
+        var showProfile by remember { mutableStateOf(false) }
 
         // 🔗 СВЯЗЫВАЕМСЯ С MAINACTIVITY ДЛЯ ПОЛУЧЕНИЯ РЕЗУЛЬТАТОВ
         val mainActivity = context as? MainActivity
@@ -38,6 +40,15 @@ object AppContent {
             Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                 // 🎯 ВЫБОР АКТИВНОГО ЭКРАНА
                 when {
+                    showProfile -> {
+                        // 👤 ЭКРАН ПРОФИЛЯ ПАЦИЕНТА
+                        com.example.toothcheck.ui.components.profile.PatientProfileScreen(
+                            patientProfile = PatientProfile(), // Временный профиль
+                            onBack = {
+                                showProfile = false
+                            }
+                        )
+                    }
                     showResults && analysisResult != null -> {
                         // 📊 ЭКРАН РЕЗУЛЬТАТОВ (для камеры и галереи)
                         com.example.toothcheck.ui.components.result.ResultScreen.ShowResult(
@@ -49,7 +60,6 @@ object AppContent {
                             }
                         )
                     }
-
                     cameraEnabled -> {
                         // 📷 ЭКРАН КАМЕРЫ
                         CameraPreview(onBack = {
@@ -58,7 +68,6 @@ object AppContent {
                             analysisResult = null
                         })
                     }
-
                     else -> {
                         // 👋 ГЛАВНЫЙ ЭКРАН
                         com.example.toothcheck.ui.components.welcome.WelcomeScreen(
@@ -66,6 +75,9 @@ object AppContent {
                                 cameraEnabled = true
                                 showResults = false
                                 analysisResult = null
+                            },
+                            onOpenProfile = {
+                                showProfile = true
                             },
                             onCloseApp = { (context as? ComponentActivity)?.finish() },
                             onTestDataset = {

@@ -1,15 +1,7 @@
 package com.example.toothcheck.ui.components.welcome
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,6 +19,7 @@ object WelcomeScreen {
     @Composable
     operator fun invoke(
         onStartCamera: () -> Unit,
+        onOpenProfile: () -> Unit,
         onCloseApp: () -> Unit,
         onTestDataset: () -> Unit,
         innerPadding: PaddingValues
@@ -42,33 +35,76 @@ object WelcomeScreen {
                 modifier = Modifier.align(Alignment.Center),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Text(text = "ToothCheck", fontSize = 32.sp)
+                Text(
+                    text = "🦷 ToothCheck",
+                    fontSize = 36.sp,
+                    style = MaterialTheme.typography.displaySmall
+                )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // 📸 ОСНОВНАЯ КНОПКА ЗАПУСКА КАМЕРЫ
-                Button(onClick = onStartCamera) {
-                    Text("Включить камеру")
+                Text(
+                    text = "Анализ кариеса по фото",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // 👤 КНОПКА ПРОФИЛЯ ПАЦИЕНТА (ОСНОВНАЯ)
+                Button(
+                    onClick = onOpenProfile,
+                    modifier = Modifier.fillMaxWidth(0.8f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("👤 Профиль", fontSize = 16.sp)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 📸 КНОПКА КАМЕРЫ
+                Button(
+                    onClick = onStartCamera,
+                    modifier = Modifier.fillMaxWidth(0.8f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Text("📷 Включить камеру", fontSize = 16.sp)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 📁 КНОПКА ГАЛЕРЕИ (1 фото)
+                Button(
+                    onClick = {
+                        val mainActivity = context as? MainActivity
+                        mainActivity?.openGalleryForDataset()
+                    },
+                    modifier = Modifier.fillMaxWidth(0.8f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text("📁 Анализ 1 фото из галереи", fontSize = 16.sp)
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // 📊 КНОПКА ТЕСТА НА 1 ФОТО
-                Button(onClick = {
-                    val mainActivity = context as? MainActivity
-                    mainActivity?.openGalleryForDataset()
-                }) {
-                    Text("📷 Протестировать на 1 фото")
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // 📊 КНОПКА ТЕСТА НА НЕСКОЛЬКИХ ФОТО
-                Button(onClick = {
-                    val mainActivity = context as? MainActivity
-                    mainActivity?.openGalleryForMultipleImages()
-                }) {
-                    Text("🧪 Протестировать на нескольких фото")
+                // 📁 КНОПКА ГАЛЕРЕИ (несколько фото)
+                Button(
+                    onClick = {
+                        val mainActivity = context as? MainActivity
+                        mainActivity?.openGalleryForMultipleImages()
+                    },
+                    modifier = Modifier.fillMaxWidth(0.8f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary
+                    )
+                ) {
+                    Text("📂 Анализ нескольких фото", fontSize = 16.sp)
                 }
             }
 
